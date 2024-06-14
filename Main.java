@@ -1,68 +1,36 @@
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 
 public class Main {
 
-    private static List<ClientHandler> clientHandlers = new ArrayList<>();
-    private static int userCounter = 1;
-
     public static void main(String[] args) {
         try {
-            ServerSocket serverSocket = new ServerSocket(1234);
-            System.out.println("Chat Server is running on port 1234");
+            Socket socket = new Socket("localhost", 1234);
+            Scanner in = new Scanner(socket.getInputStream());
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+
+            Scanner scanner = new Scanner(System.in);
+
+            Thread messageReceiver = new Thread(() -> {
+                try {
+                    while (true) {
+                        String message = in.nextLine();
+                        System.out.println(message);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            messageReceiver.start();
 
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                ClientHandler clientHandler = new ClientHandler(clientSocket, userCounter);
-                clientHandlers.add(clientHandler);
-                userCounter++;
-                clientHandler.start();
+                String message = scanner.nextLine();
+                out.println(message);
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    static class ClientHandler extends Thread {
-        private Socket clientSocket;
-        private PrintWriter out;
-        private int userId;
-
-        public ClientHandler(Socket socket, int userId) {
-            this.clientSocket = socket;
-            this.userId = userId;
-        }
-
-        public void run() {
-            try {
-                Scanner in = new Scanner(clientSocket.getInputStream());
-                out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-                out.println("Connected to chat server");
-
-                while (true) {
-                    if (in.hasNextLine()) {
-                        String message = in.nextLine();
-                        System.out.println("User" + userId + ": " + message);
-                        broadcastMessage("User" + userId + ": " + message);
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void broadcastMessage(String message) {
-            for (ClientHandler handler : clientHandlers) {
-                if (handler.userId != this.userId) {
-                    handler.out.println(message);
-                }
-            }
         }
     }
 }
